@@ -14,12 +14,14 @@ protocol Logging {
 }
 
 struct Logger: Logging {
+    public var errorHandling: ErrorHandling
     private var files: Files
-    var errorHandling: ErrorHandling
+    private var art: Art
     
     init(files: Files = .sharedFiles) {
         self.files = files
         self.errorHandling = ErrorHandling()
+        self.art = Art()
     }
     
     func getDateTime() -> String {
@@ -29,26 +31,31 @@ struct Logger: Logging {
     }
     
     func strToData(_ input: [String]) -> Data {
-        return input.joined(separator: " ").data(using: .utf8) ?? Data() // Genius...
+        return input.joined(separator: " ").data(using: .utf8) ?? Data()
     }
     
-    mutating func createLog() throws -> Void {
-        try files.fileManager.createDirectory(at: files.logLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
-        if files.fileManager.createFile(atPath: files.logLocation.path, contents: strToData([getDateTime(), "Creating log! \n"])) {
-            appendToLog(message: "Made logfile in " + files.logLocation.path)
-            return
-        } else {
-            throw ErrorHandling.FileErrors.failedToCreateLogfile
+    mutating func createLog() -> Void {
+        do {
+            try files.fileManager.createDirectory(at: files.logLocation.deletingLastPathComponent(), withIntermediateDirectories: true)
+            if files.fileManager.createFile(atPath: files.logLocation.path, contents: strToData([])) {
+                appendToLog(message: art.ascii)
+            } else {
+                throw ErrorHandling.FileErrors.failedToCreateLogfile
+            }
+        } catch {
+            errorHandling.handleError(error, logger: self) // Does this create circular loops, if error occurs?
         }
     }
     
+    /** Prints timestamped message to the logfine and to the system console. */
     mutating func appendToLog(message: String) -> Void {
+        let message = "\(getDateTime()): \(message) \n"
         print("\n" + message)
         if let data = message.data(using: .utf8) {
             FileHandle.standardError.write(data)
         }
         do {
-            let info = Data(strToData([getDateTime(), message + "\n"]))
+            let info = Data(strToData([message]))
             let fileHandler = try FileHandle(forWritingTo: files.logLocation)
             defer { fileHandler.closeFile() }
             try fileHandler.seekToEnd()
