@@ -1,1 +1,1 @@
-A serverside minecraft backup daemon built purely in Swift.
+A serverside backup daemon built purely in Swift.
